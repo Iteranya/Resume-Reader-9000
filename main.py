@@ -4,62 +4,112 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 from PyPDF2 import PdfReader
 from io import BytesIO
-import time
 import re
+import json
+import os
+from datetime import datetime
 
-def download_file_from_drive(service, file_id):
+# Configuration constants
+CONFIG = {
+    'CREDENTIALS_FILE': 'credentials.json',
+    'SPREADSHEET_NAME': 'Test Form',
+    'OUTPUT_DIR': 'responses',
+    'ATTACHMENT_DIR': 'attachments',
+    'SCOPES': [
+        'https://spreadsheets.google.com/feeds',
+        'https://www.googleapis.com/auth/drive'
+    ]
+}
+
+# Field mappings for form responses
+# Add/modify fields here when form questions change
+FIELD_MAPPINGS = {
+    'resume': {
+        'type': 'attachment',
+        'format': 'pdf',
+        'extract_text': True,
+    }
+    # Example additional fields:
+    # 'profile_picture': {
+    #     'type': 'attachment',
+    #     'format': 'image',
+    #     'extract_text': False,
+    # },
+    # 'email': {
+    #     'type': 'text',
+    # }
+}
+
+def setup_directories():
+    """Create necessary directories for storing responses and attachments."""
+    for directory in [CONFIG['OUTPUT_DIR'], CONFIG['ATTACHMENT_DIR']]:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+            print(f"Created directory: {directory}")
+
+def initialize_google_services():
+    """Initialize and return Google Sheets and Drive services."""
+    creds = ServiceAccountCredentials.from_json_keyfile_name(
+        CONFIG['CREDENTIALS_FILE'],
+        CONFIG['SCOPES']
+    )
+    
+    sheets_client = gspread.authorize(creds)
+    drive_service = build('drive', 'v3', credentials=creds)
+    
+    return sheets_client, drive_service
+
+def download_file_from_drive(service, file_id, mime_type='application/pdf'):
     """
     Download a file from Google Drive using the Drive API.
+    
+    Args:
+        service: Google Drive service instance
+        file_id: ID of the file to download
+        mime_type: Expected MIME type of the file
+    
+    Returns:
+        BytesIO object containing the file content
     """
     try:
-        # Get file metadata to verify it's a PDF
+        # Verify file type
         file_metadata = service.files().get(fileId=file_id, fields='mimeType').execute()
-        if file_metadata['mimeType'] != 'application/pdf':
-            raise ValueError(f"File is not a PDF. Mime type: {file_metadata['mimeType']}")
+        if file_metadata['mimeType'] != mime_type:
+            raise ValueError(f"File is not the expected type. Expected: {mime_type}, Got: {file_metadata['mimeType']}")
 
-        # Create request to download file
+        # Download file
         request = service.files().get_media(fileId=file_id)
+        file_content = BytesIO()
+        downloader = MediaIoBaseDownload(file_content, request)
         
-        # Download the file
-        fh = BytesIO()
-        downloader = MediaIoBaseDownload(fh, request)
-        
+        # Show download progress
         done = False
-        while done is False:
+        while not done:
             status, done = downloader.next_chunk()
             if status:
                 print(f"Download Progress: {int(status.progress() * 100)}%")
                 
-        fh.seek(0)
-        return fh.read()
+        file_content.seek(0)
+        return file_content.read()
         
     except Exception as e:
         print(f"Error downloading file: {str(e)}")
         raise
 
 def extract_text_from_pdf(pdf_content):
-    """
-    Extract text from PDF content with error handling.
-    """
+    """Extract text content from a PDF file."""
     try:
         with BytesIO(pdf_content) as pdf_file:
             reader = PdfReader(pdf_file)
-            pdf_text = []
-            for page in reader.pages:
-                try:
-                    text = page.extract_text()
-                    if text:
-                        pdf_text.append(text)
-                except Exception as e:
-                    pdf_text.append(f"Error extracting page: {str(e)}")
-            return '\n'.join(pdf_text)
+            return '\n'.join(
+                page.extract_text() for page in reader.pages
+                if page.extract_text()
+            )
     except Exception as e:
         return f"Error processing PDF: {str(e)}"
 
 def extract_file_id(url):
-    """
-    Extract file ID from various Google Drive URL formats.
-    """
+    """Extract file ID from various Google Drive URL formats."""
     patterns = [
         r'/file/d/([^/]+)',
         r'id=([^&]+)',
@@ -72,66 +122,93 @@ def extract_file_id(url):
             return match.group(1)
     return None
 
-def main():
-    # Configure API credentials
-    print("Initializing Google APIs...")
-    SCOPES = [
-        'https://spreadsheets.google.com/feeds',
-        'https://www.googleapis.com/auth/drive'
-    ]
+def process_attachment(drive_service, url, field_config, response_id):
+    """
+    Process an attachment field from the form response.
     
-    creds = ServiceAccountCredentials.from_json_keyfile_name(
-        'credentials.json',
-        SCOPES
-    )
+    Args:
+        drive_service: Google Drive service instance
+        url: URL of the attachment
+        field_config: Configuration for this field
+        response_id: Unique identifier for this response
+        
+    Returns:
+        dict containing processed attachment information
+    """
+    result = {
+        'original_url': url,
+        'local_path': None,
+        'extracted_text': None,
+        'error': None
+    }
     
-    # Initialize both Sheets and Drive services
-    sheets_client = gspread.authorize(creds)
-    drive_service = build('drive', 'v3', credentials=creds)
-    
-    print("Successfully authorized with Google APIs")
+    try:
+        file_id = extract_file_id(url)
+        if not file_id:
+            raise ValueError("Could not extract file ID from URL")
+            
+        # Download file
+        content = download_file_from_drive(
+            drive_service, 
+            file_id, 
+            f"application/{field_config['format']}"
+        )
+        
+        # Save file
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"{response_id}_{timestamp}.{field_config['format']}"
+        filepath = os.path.join(CONFIG['ATTACHMENT_DIR'], filename)
+        
+        with open(filepath, 'wb') as f:
+            f.write(content)
+        
+        result['local_path'] = filepath
+        
+        # Extract text if configured
+        if field_config.get('extract_text'):
+            result['extracted_text'] = extract_text_from_pdf(content)
+            
+    except Exception as e:
+        result['error'] = str(e)
+        
+    return result
+
+def process_responses():
+    """Main function to process form responses."""
+    setup_directories()
+    sheets_client, drive_service = initialize_google_services()
 
     try:
-        sheet = sheets_client.open('Test Form').sheet1
-        data = sheet.get_all_records()
-        print(f"Successfully opened sheet with {len(data)} rows")
+        # Get form responses
+        sheet = sheets_client.open(CONFIG['SPREADSHEET_NAME']).sheet1
+        responses = sheet.get_all_records()
+        print(f"Processing {len(responses)} responses...")
+
+        # Process each response
+        for response in responses:
+            response_id = response.get('id', datetime.now().strftime('%Y%m%d_%H%M%S'))
+            processed_response = response.copy()
+            
+            # Process each field according to its configuration
+            for field_name, field_config in FIELD_MAPPINGS.items():
+                if field_name in response and response[field_name]:
+                    if field_config['type'] == 'attachment':
+                        processed_response[field_name] = process_attachment(
+                            drive_service,
+                            response[field_name],
+                            field_config,
+                            response_id
+                        )
+            
+            # Save processed response to JSON
+            output_file = os.path.join(CONFIG['OUTPUT_DIR'], f"response_{response_id}.json")
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(processed_response, f, indent=2, ensure_ascii=False)
+            
+            print(f"Processed response {response_id}")
+
     except Exception as e:
-        print(f"Error accessing Google Sheet: {str(e)}")
-        return
-
-    for row in data:
-        print(f"\n{'='*50}")
-        print(f"Processing row: {row.get('id', 'N/A')}")
-        
-        if not row.get('resume'):
-            print("No resume URL found in row")
-            row['pdf_content'] = ''
-            continue
-
-        url = row['resume']
-        print(f"Processing URL: {url}")
-        
-        try:
-            file_id = extract_file_id(url)
-            if not file_id:
-                raise ValueError("Could not extract file ID from URL")
-                
-            print(f"Extracted file ID: {file_id}")
-            
-            # Download PDF using Drive API
-            pdf_content = download_file_from_drive(drive_service, file_id)
-            print(f"Successfully downloaded PDF, size: {len(pdf_content)} bytes")
-            
-            # Extract text
-            result = extract_text_from_pdf(pdf_content)
-            print(result)
-            print(f"Successfully extracted text from PDF")
-            
-        except Exception as e:
-            print(f"Error processing PDF: {str(e)}")
-            row['pdf_content'] = f"Error: {str(e)}"
-
-        print(f"Finished processing row: {row.get('id', 'N/A')}")
+        print(f"Error processing responses: {str(e)}")
 
 if __name__ == "__main__":
-    main()
+    process_responses()
