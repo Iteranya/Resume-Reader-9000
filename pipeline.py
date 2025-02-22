@@ -77,8 +77,35 @@ class MainPipeline:
         }
     
     def question_func(self,row):
-        print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
         return "Hunyaaa~"
     
     def check_sheets(self):
         process_responses()
+
+
+class AnswerPipeline:
+    def __init__(self,interval=180):
+        self.db = TinyDB(config.DATABASE_FILE)
+        self.interval = interval
+        self.running = False
+        self.thread = None
+
+    def start(self):
+        """Starts the background pipeline."""
+        self.running = True
+        self.thread = threading.Thread(target=self.run_pipeline, daemon=True)
+        self.thread.start()
+
+    def stop(self):
+        """Stops the pipeline gracefully."""
+        self.running = False
+        if self.thread:
+            self.thread.join()
+
+    def run_pipeline(self):
+        """Main loop that periodically checks the database."""
+        while self.running:
+            self.check_sheets()
+            self.check_missing_questions()
+            self.check_complete_entries()
+            time.sleep(self.interval)

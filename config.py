@@ -1,6 +1,3 @@
-
-
-
 CREDENTIALS_FILE= 'credentials.json'
 SPREADSHEET_NAME = 'Test Form 2 (Responses)'
 OUTPUT_DIR='responses'
