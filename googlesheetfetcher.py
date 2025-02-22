@@ -13,22 +13,7 @@ import config
 # Configuration constants
 # Field mappings for form responses
 # Add/modify fields here when form questions change
-FIELD_MAPPINGS = {
-    'Resume/CV': {
-        'type': 'attachment',
-        'format': 'pdf',
-        'extract_text': True,
-    }
-    # Example additional fields:
-    # 'profile_picture': {
-    #     'type': 'attachment',
-    #     'format': 'image',
-    #     'extract_text': False,
-    # },
-    # 'email': {
-    #     'type': 'text',
-    # }
-}
+FIELD_MAPPINGS = config.FIELD_MAPPINGS
 
 def setup_directories():
     """Create necessary directories for storing responses and attachments."""
