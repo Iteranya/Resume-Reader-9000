@@ -45,7 +45,7 @@ class MainPipeline:
         # Adjust the search criteria if your definition of "empty" is different.
         results = self.db.search(Q.questions == '')
         for row in results:
-            new_question = question_func(row)
+            new_question = self.question_func(row)
             # Update the row using the primary key 'phone_number'
             self.db.update({'questions': new_question}, Q.phone_number == row.get('phone_number'))
 
