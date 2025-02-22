@@ -1,6 +1,7 @@
 from tinydb import TinyDB, Query
 import threading
 import time
+from googlesheetfetcher import process_responses
 
 class MainPipeline:
     def __init__(self, db_path,interval=180):
@@ -32,6 +33,7 @@ class MainPipeline:
     def run_pipeline(self):
         """Main loop that periodically checks the database."""
         while self.running:
+            self.check_sheets()
             self.check_missing_questions()
             self.check_complete_entries()
             time.sleep(self.interval)
@@ -70,3 +72,6 @@ class MainPipeline:
     def question_func():
         
         return {}
+    
+    def check_sheets():
+        process_responses()

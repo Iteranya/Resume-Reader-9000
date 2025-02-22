@@ -1,8 +1,8 @@
 from tinydb import TinyDB, Query  # Add TinyDB and Query import
-
+import config
 class ResponseDB:
     """Handles database operations using TinyDB"""
-    def __init__(self, db_path='responses_db.json'):
+    def __init__(self, db_path=config.DATABASE_FILE):
         self.db = TinyDB(db_path)
         self.query = Query()
     

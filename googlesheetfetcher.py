@@ -9,20 +9,8 @@ import json
 import os
 from datetime import datetime
 from datamanager import ResponseDB
-
+import config
 # Configuration constants
-CONFIG_SHEET = {
-    'CREDENTIALS_FILE': 'credentials.json',
-    'SPREADSHEET_NAME': 'Test Form 2 (Responses)',
-    'OUTPUT_DIR': 'responses',
-    'ATTACHMENT_DIR': 'attachments',
-    'DATABASE_FILE': 'responses_db.json',  # New config entry
-    'SCOPES': [
-        'https://spreadsheets.google.com/feeds',
-        'https://www.googleapis.com/auth/drive'
-    ]
-}
-
 # Field mappings for form responses
 # Add/modify fields here when form questions change
 FIELD_MAPPINGS = {
@@ -44,7 +32,7 @@ FIELD_MAPPINGS = {
 
 def setup_directories():
     """Create necessary directories for storing responses and attachments."""
-    for directory in [CONFIG_SHEET['OUTPUT_DIR'], CONFIG_SHEET['ATTACHMENT_DIR']]:
+    for directory in [config.OUTPUT_DIR, config.ATTACHMENT_DIR]:
         if not os.path.exists(directory):
             os.makedirs(directory)
             print(f"Created directory: {directory}")
@@ -52,8 +40,8 @@ def setup_directories():
 def initialize_google_services():
     """Initialize and return Google Sheets and Drive services."""
     creds = ServiceAccountCredentials.from_json_keyfile_name(
-        CONFIG_SHEET['CREDENTIALS_FILE'],
-        CONFIG_SHEET['SCOPES']
+        config.CREDENTIALS_FILE,
+        config.SCOPES
     )
     
     sheets_client = gspread.authorize(creds)
@@ -159,7 +147,7 @@ def process_attachment(drive_service, url, field_config, response_id):
         # Save file
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = f"{response_id}_{timestamp}.{field_config['format']}"
-        filepath = os.path.join(CONFIG_SHEET['ATTACHMENT_DIR'], filename)
+        filepath = os.path.join(config.ATTACHMENT_DIR, filename)
         
         with open(filepath, 'wb') as f:
             f.write(content)
@@ -183,7 +171,7 @@ def process_responses():
 
     try:
         # Get form responses
-        sheet = sheets_client.open(CONFIG_SHEET['SPREADSHEET_NAME']).sheet1
+        sheet = sheets_client.open(config.SPREADSHEET_NAME).sheet1
         responses = sheet.get_all_records()
         print(f"📥 Found {len(responses)} responses to process...")
 
@@ -208,7 +196,7 @@ def process_responses():
             print(f"✅ Processed response {idx}/{len(responses)} (ID: {response_id})")
 
         print(f"\n🎉 Successfully processed {len(responses)} responses")
-        print(f"💾 Database saved to: {CONFIG_SHEET['DATABASE_FILE']}")
+        print(f"💾 Database saved to: {config.DATABASE_FILE}")
 
     except Exception as e:
         print(f"❌ Error processing responses: {str(e)}")
