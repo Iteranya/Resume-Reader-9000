@@ -8,13 +8,15 @@ import re
 import json
 import os
 from datetime import datetime
+from datamanager import ResponseDB
 
 # Configuration constants
-CONFIG = {
+CONFIG_SHEET = {
     'CREDENTIALS_FILE': 'credentials.json',
     'SPREADSHEET_NAME': 'Test Form 2 (Responses)',
     'OUTPUT_DIR': 'responses',
     'ATTACHMENT_DIR': 'attachments',
+    'DATABASE_FILE': 'responses_db.json',  # New config entry
     'SCOPES': [
         'https://spreadsheets.google.com/feeds',
         'https://www.googleapis.com/auth/drive'
@@ -42,7 +44,7 @@ FIELD_MAPPINGS = {
 
 def setup_directories():
     """Create necessary directories for storing responses and attachments."""
-    for directory in [CONFIG['OUTPUT_DIR'], CONFIG['ATTACHMENT_DIR']]:
+    for directory in [CONFIG_SHEET['OUTPUT_DIR'], CONFIG_SHEET['ATTACHMENT_DIR']]:
         if not os.path.exists(directory):
             os.makedirs(directory)
             print(f"Created directory: {directory}")
@@ -50,8 +52,8 @@ def setup_directories():
 def initialize_google_services():
     """Initialize and return Google Sheets and Drive services."""
     creds = ServiceAccountCredentials.from_json_keyfile_name(
-        CONFIG['CREDENTIALS_FILE'],
-        CONFIG['SCOPES']
+        CONFIG_SHEET['CREDENTIALS_FILE'],
+        CONFIG_SHEET['SCOPES']
     )
     
     sheets_client = gspread.authorize(creds)
@@ -157,7 +159,7 @@ def process_attachment(drive_service, url, field_config, response_id):
         # Save file
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = f"{response_id}_{timestamp}.{field_config['format']}"
-        filepath = os.path.join(CONFIG['ATTACHMENT_DIR'], filename)
+        filepath = os.path.join(CONFIG_SHEET['ATTACHMENT_DIR'], filename)
         
         with open(filepath, 'wb') as f:
             f.write(content)
@@ -174,22 +176,23 @@ def process_attachment(drive_service, url, field_config, response_id):
     return result
 
 def process_responses():
-    """Main function to process form responses."""
+    """Main function to process form responses"""
     setup_directories()
     sheets_client, drive_service = initialize_google_services()
+    db = ResponseDB()  # Initialize database
 
     try:
         # Get form responses
-        sheet = sheets_client.open(CONFIG['SPREADSHEET_NAME']).sheet1
+        sheet = sheets_client.open(CONFIG_SHEET['SPREADSHEET_NAME']).sheet1
         responses = sheet.get_all_records()
-        print(f"Processing {len(responses)} responses...")
+        print(f"📥 Found {len(responses)} responses to process...")
 
         # Process each response
-        for response in responses:
+        for idx, response in enumerate(responses, 1):
             response_id = response.get('id', datetime.now().strftime('%Y%m%d_%H%M%S'))
             processed_response = response.copy()
             
-            # Process each field according to its configuration
+            # Process special fields
             for field_name, field_config in FIELD_MAPPINGS.items():
                 if field_name in response and response[field_name]:
                     if field_config['type'] == 'attachment':
@@ -200,12 +203,12 @@ def process_responses():
                             response_id
                         )
             
-            # Save processed response to JSON
-            output_file = os.path.join(CONFIG['OUTPUT_DIR'], f"response_{response_id}.json")
-            with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(processed_response, f, indent=2, ensure_ascii=False)
-            
-            print(f"Processed response {response_id}")
+            # Save to database
+            db.upsert_response(processed_response)
+            print(f"✅ Processed response {idx}/{len(responses)} (ID: {response_id})")
+
+        print(f"\n🎉 Successfully processed {len(responses)} responses")
+        print(f"💾 Database saved to: {CONFIG_SHEET['DATABASE_FILE']}")
 
     except Exception as e:
-        print(f"Error processing responses: {str(e)}")
+        print(f"❌ Error processing responses: {str(e)}")
