@@ -15,6 +15,10 @@ import config
 # Add/modify fields here when form questions change
 FIELD_MAPPINGS = config.FIELD_MAPPINGS
 
+def sanitize_field_name(field_name):
+    """Convert field names to lowercase with underscores instead of spaces."""
+    return field_name.lower().replace(" ", "_")
+
 def setup_directories():
     """Create necessary directories for storing responses and attachments."""
     for directory in [config.OUTPUT_DIR, config.ATTACHMENT_DIR]:
@@ -152,36 +156,57 @@ def process_responses():
     """Main function to process form responses"""
     setup_directories()
     sheets_client, drive_service = initialize_google_services()
-    db = ResponseDB()  # Initialize database
+    db = ResponseDB()
 
-    try:
-        # Get form responses
-        sheet = sheets_client.open(config.SPREADSHEET_NAME).sheet1
-        responses = sheet.get_all_records()
-        print(f"📥 Found {len(responses)} responses to process...")
+    # Get form responses
+    sheet = sheets_client.open(config.SPREADSHEET_NAME).sheet1
+    responses = sheet.get_all_records()
+    print(f"📥 Found {len(responses)} responses to process...")
 
-        # Process each response
-        for idx, response in enumerate(responses, 1):
-            response_id = response.get('id', datetime.now().strftime('%Y%m%d_%H%M%S'))
-            processed_response = response.copy()
-            
-            # Process special fields
-            for field_name, field_config in FIELD_MAPPINGS.items():
-                if field_name in response and response[field_name]:
-                    if field_config['type'] == 'attachment':
-                        processed_response[field_name] = process_attachment(
-                            drive_service,
-                            response[field_name],
-                            field_config,
-                            response_id
-                        )
-            
-            # Save to database
-            db.upsert_response(processed_response)
-            print(f"✅ Processed response {idx}/{len(responses)} (ID: {response_id})")
+    # Track processed and skipped responses
+    processed_count = 0
+    skipped_count = 0
 
-        print(f"\n🎉 Successfully processed {len(responses)} responses")
-        print(f"💾 Database saved to: {config.DATABASE_FILE}")
+    # Process each response
+    for idx, response in enumerate(responses, 1):
+        phone_number = str(response.get('Phone Number', ''))  # Convert to string for consistency
+        timestamp = response.get('Timestamp', '')
+        
+        # Check if response already exists
 
-    except Exception as e:
-        print(f"❌ Error processing responses: {str(e)}")
+        if db.check_duplicate(phone_number, timestamp):
+            print(f"⏭️ Skipping duplicate response {idx}/{len(responses)} "
+                  f"(Phone: {phone_number}, Timestamp: {timestamp})")
+            skipped_count += 1
+            continue
+
+        response_id = response.get('id', datetime.now().strftime('%Y%m%d_%H%M%S'))
+        processed_response = {sanitize_field_name(k): v for k, v in response.items()}
+        
+        # Add extra fields with default values
+        processed_response["questions"] = ""
+        processed_response["answers"] = ""
+        processed_response["eval"] = ""
+        processed_response["score"] = 0
+        
+        # Process special fields
+        for field_name, field_config in FIELD_MAPPINGS.items():
+            if field_name in response and response[field_name]:
+                if field_config['type'] == 'attachment':
+                    processed_response[field_name] = process_attachment(
+                        drive_service,
+                        response[field_name],
+                        field_config,
+                        response_id
+                    )
+        
+        # Save to database
+        db.upsert_response(processed_response)
+        print(f"✅ Processed response {idx}/{len(responses)} (ID: {response_id})")
+        processed_count += 1
+
+    print(f"\n🎉 Processing complete:")
+    print(f"   ✅ Successfully processed: {processed_count} responses")
+    print(f"   ⏭️ Skipped duplicates: {skipped_count} responses")
+    print(f"💾 Database saved to: {config.DATABASE_FILE}")
+

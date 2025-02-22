@@ -172,3 +172,5 @@ cython_debug/
 
 # Secrets
 credentials.json
+responses_db.json
+

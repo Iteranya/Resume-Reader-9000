@@ -2,9 +2,9 @@ from tinydb import TinyDB, Query
 import threading
 import time
 from googlesheetfetcher import process_responses
-
+import config
 class MainPipeline:
-    def __init__(self, db_path,interval=180):
+    def __init__(self,interval=180):
         """
         :param db_path: Path to your TinyDB JSON file.
         :param question_func: Function that processes a row missing 'questions'.
@@ -13,7 +13,7 @@ class MainPipeline:
                           Should accept a row dict and return a dict with keys 'eval' and 'score'.
         :param interval: Time interval between checks in seconds (default is 180 seconds).
         """
-        self.db = TinyDB(db_path)
+        self.db = TinyDB(config.DATABASE_FILE)
         self.interval = interval
         self.running = False
         self.thread = None
@@ -45,8 +45,9 @@ class MainPipeline:
         """
         Q = Query()
         # Adjust the search criteria if your definition of "empty" is different.
-        results = self.db.search(Q.questions == '')
+        results = self.db.search(Q.questions == "")
         for row in results:
+            print("Hunyaaa~")
             new_question = self.question_func(row)
             # Update the row using the primary key 'phone_number'
             self.db.update({'questions': new_question}, Q.phone_number == row.get('phone_number'))
@@ -57,21 +58,27 @@ class MainPipeline:
         Runs the eval_func on each row and updates the 'eval' and 'score' fields.
         """
         Q = Query()
-        results = self.db.search((Q.answers != '') & (Q.questions != ''))
+        results = self.db.search((Q.answers != "") & (Q.questions != ""))
         for row in results:
             result_dict = self.eval_func(row)
             # We assume result_dict contains keys 'eval' and 'score'
-            self.db.update({'eval': result_dict.get('eval'),
-                            'score': result_dict.get('score')},
-                           Q.phone_number == row.get('phone_number'))
+            self.db.update(
+                {
+                    'eval': result_dict.get('eval'),
+                    'score': result_dict.get('score')
+                },
+                Q.phone_number == row.get('phone_number'))
             
-    def eval_func():
+    def eval_func(self,row):
 
-        return {}
+        return {
+            'eval':"Humu humu!",
+            'score':"8.9"
+        }
     
-    def question_func():
-        
-        return {}
+    def question_func(self,row):
+        print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+        return "Hunyaaa~"
     
-    def check_sheets():
+    def check_sheets(self):
         process_responses()
