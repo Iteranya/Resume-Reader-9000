@@ -1,0 +1,20 @@
+to-do:
+1. Ask Pandu-sama wth is get_all_records(), it is not in gspread documentation
+2. Why is eval_func in main pipeline?
+3. Yknow what? langchain is probably good. Structured response for question generation will be great (damn I'm pampered by gemini api). Why? Cuz we don't want "Sure, I can help with that" bs, we just want the 5 questions and our additional formatting. Also it is 100% needed for the scoring
+4. Skip pdf download for existing files (or probably some candidate indexing is needed)
+5. Wait ummm, .docx for answer file? If needed I add `from docx import Document` in googlesheetfetcher
+6. pipeline > AnswerPipeline > eval_func requires further dev
+
+notes:
+- point 1, following the documentation should be something like
+```python
+from gspread.utils import GridRangeType
+
+list_of_lists = sheet.get(return_type=GridRangeType.ListOfLists)
+responses = [dict(zip(list_of_lists[0], row)) for row in list_of_lists[1:]]
+```
+
+- So like, we can have the answer attachments responses saved to the same spreadsheet on a different worksheet. But we need to select by <worksheet name> instead of <worksheet number> (sheet1, sheet2, etc). Me already altered the sheet :3
+
+- How to duplicate check for answer? CV/resume form use phone number, do we match by phone number too? Can we use email instead? (I think email is better)

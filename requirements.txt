@@ -1,0 +1,7 @@
+google_api_python_client
+gspread
+oauth2client
+openai
+PyPDF2
+python-dotenv
+tinydb

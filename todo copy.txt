@@ -1,0 +1,17 @@
+So... 
+
+Built the Pipeline, works
+
+Next up is the second pipeline, connected to the answer sheet Google Sheet...
+
+Which is, honestly, painful to think about
+
+Someone from google is responsible for my suffering right now...
+
+So yeah, lemme just...
+
+- Answering Pipeline
+- Prompt Engineering
+- Assemble Everything
+
+Great...
