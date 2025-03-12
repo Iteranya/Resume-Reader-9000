@@ -3,6 +3,8 @@ import threading
 import time
 from googlesheetfetcher import process_responses
 import config
+from promptsender import send_prompt
+
 class MainPipeline:
     def __init__(self,interval=180):
         """
@@ -75,10 +77,20 @@ class MainPipeline:
             'eval':"Humu humu!",
             'score':"8.9"
         }
-    
-    def question_func(self,row):
-        return "Hunyaaa~"
-    
+
+    def question_func(self):
+        """Generates questions based on given cv/resume."""
+        results = self.db.search(Q.questions == "")
+        for row in results:
+            extracted_text = row.get('Resume/CV').get('extracted_text')
+            prompt = f"""
+            Generate 5 questions for a job interview based on the following cv/resume:
+            {extracted_text}
+            """
+            response = self.prompt_sender.send_prompt(prompt)
+            question = response
+            self.db.update({'question': question}, Q.phone_number == row.get('phone_number'))
+
     def check_sheets(self):
         process_responses()
 
@@ -105,7 +117,22 @@ class AnswerPipeline:
     def run_pipeline(self):
         """Main loop that periodically checks the database."""
         while self.running:
-            self.check_sheets()
-            self.check_missing_questions()
-            self.check_complete_entries()
+            self.eval_func()
             time.sleep(self.interval)
+
+    def eval_func(self,row):
+        """Evaluates the answers based on the questions and the cv/resume."""
+        questions = row.get('questions')
+        answers = row.get('answers')
+        prompt = f"""
+        Evaluate the following answers based on the questions and the cv/resume:
+        Questions: {questions}
+        Answers: {answers}
+        """ # [Chuck notes: prompt engineering needed]
+        response = self.prompt_sender.send_prompt(prompt) # [Chuck notes: structured response needed]
+        # Your evaluation logic here
+        return {
+            'eval':"Humu humu!",
+            'score':"8.9"
+        }
+
