@@ -1,7 +1,8 @@
 CREDENTIALS_FILE= 'credentials.json'
 SPREADSHEET_NAME = 'Test Form 2 (Responses)'
 OUTPUT_DIR='responses'
-ATTACHMENT_DIR = 'attachments'
+RESUME_CV_DIR = 'resume_cv'
+ANSWERS_DIR = 'ans_attachments'
 DATABASE_FILE= 'responses_db.json'  # New config entry
 SCOPES = [
         'https://spreadsheets.google.com/feeds',

@@ -1,8 +1,10 @@
 import gspread
+from gspread.utils import GridRangeType
 from oauth2client.service_account import ServiceAccountCredentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 from PyPDF2 import PdfReader
+from docx import Document
 from io import BytesIO
 import re
 import json
@@ -21,7 +23,7 @@ def sanitize_field_name(field_name):
 
 def setup_directories():
     """Create necessary directories for storing responses and attachments."""
-    for directory in [config.OUTPUT_DIR, config.ATTACHMENT_DIR]:
+    for directory in [config.OUTPUT_DIR, config.RESUME_CV_DIR, condfig.ANSWERS_DIR]:
         if not os.path.exists(directory):
             os.makedirs(directory)
             print(f"Created directory: {directory}")
@@ -86,6 +88,16 @@ def extract_text_from_pdf(pdf_content):
             )
     except Exception as e:
         return f"Error processing PDF: {str(e)}"
+
+def extract_text_from_docx(docx_content):
+    """Extract text content from a DOCX file."""
+    document = Document(docx_content)
+    try:
+        return '\n'.join(
+            paragraph.text for paragraph in document.paragraphs
+            if paragraph.text)
+    except Exception as e:
+        return f"Error processing DOCX: {str(e)}"
 
 def extract_file_id(url):
     """Extract file ID from various Google Drive URL formats."""
@@ -159,8 +171,12 @@ def process_responses():
     db = ResponseDB()
 
     # Get form responses
-    sheet = sheets_client.open(config.SPREADSHEET_NAME).sheet1
+    sheet = sheets_client.open(config.SPREADSHEET_NAME).worksheet("Form Responses 1") # Changed to use worksheet name instead of number
     responses = sheet.get_all_records()
+
+    # list_of_lists = sheet.get(return_type=GridRangeType.ListOfLists)
+    # responses = [dict(zip(list_of_lists[0], row)) for row in list_of_lists[1:]]
+
     print(f"📥 Found {len(responses)} responses to process...")
 
     # Track processed and skipped responses
@@ -184,6 +200,7 @@ def process_responses():
         processed_response = {sanitize_field_name(k): v for k, v in response.items()}
         
         # Add extra fields with default values
+        processed_response["answer_file"] = ""
         processed_response["questions"] = ""
         processed_response["answers"] = ""
         processed_response["eval"] = ""
@@ -210,3 +227,20 @@ def process_responses():
     print(f"   ⏭️ Skipped duplicates: {skipped_count} responses")
     print(f"💾 Database saved to: {config.DATABASE_FILE}")
 
+def process_answer_responses():
+    """Process responses from the answer sheet."""
+    setup_directories()
+    sheets_client, drive_service = initialize_google_services()
+    db = ResponseDB()
+
+    # Get form responses
+    sheet = sheets_client.open(config.SPREADSHEET_NAME).worksheet("Form Response 2")
+    responses = sheet.get_all_records()
+
+    print(f"📥 Found {len(responses)} responses to process...")
+
+    # Track processed and skipped responses
+    processed_count = 0
+    skipped_count = 0
+
+    
