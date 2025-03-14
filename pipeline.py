@@ -4,6 +4,7 @@ import time
 from googlesheetfetcher import process_responses
 import config
 import generate_questions
+import evaluate_answers
 class MainPipeline:
     def __init__(self,interval=180):
         """
@@ -123,15 +124,12 @@ class AnswerPipeline:
         """Evaluates the answers based on the questions and the cv/resume."""
         questions = row.get('questions')
         answers = row.get('answers')
-        prompt = f"""
-        Evaluate the following answers based on the questions and the cv/resume:
-        Questions: {questions}
-        Answers: {answers}
-        """ # [Chuck notes: prompt engineering needed]
-        response = self.prompt_sender.send_prompt(prompt) # [Chuck notes: structured response needed]
-        # Your evaluation logic here
+        comment = evaluate_answers.make_commentary(questions,answers)
+        score = evaluate_answers.score_question(comment)
+         # [Chuck notes: prompt engineering needed]
+        
         return {
-            'eval':"Humu humu!",
-            'score':"8.9"
+            'eval':comment,
+            'score':score # Remind me to regex this part
         }
 
