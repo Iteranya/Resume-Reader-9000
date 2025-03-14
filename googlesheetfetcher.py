@@ -4,7 +4,6 @@ from oauth2client.service_account import ServiceAccountCredentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 from PyPDF2 import PdfReader
-from docx import Document
 from io import BytesIO
 import re
 import json
@@ -197,7 +196,13 @@ def process_responses():
             continue
 
         response_id = response.get('id', datetime.now().strftime('%Y%m%d_%H%M%S'))
-        processed_response = {sanitize_field_name(k): v for k, v in response.items()}
+
+        KEYMAP = config.KEYMAP
+        processed_response = {}
+
+        for key, value in response.items():
+            field_name = sanitize_field_name(key)
+            processed_response[KEYMAP.get(field_name)] = value
         
         # Add extra fields with default values
         processed_response["answer_file"] = ""

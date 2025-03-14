@@ -83,11 +83,10 @@ class MainPipeline:
         results = self.db.search(Q.questions == "")
         for row in results:
             extracted_text = row.get('Resume/CV').get('extracted_text')
-            # Humu! This part...
-            # Lemme just...
+            position = row.get('posisi_yang_diinginkan')
             
-            response = generate_questions.create_interview_question(extracted_text,"Position")
-            # Wait... Did I forgot to add desired position value???
+            response = generate_questions.create_interview_question(extracted_text,position)
+    
             question = response
             self.db.update({'question': question}, Q.phone_number == row.get('phone_number'))
 
