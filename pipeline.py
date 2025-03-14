@@ -3,8 +3,7 @@ import threading
 import time
 from googlesheetfetcher import process_responses
 import config
-from promptsender import send_prompt
-
+import generate_questions
 class MainPipeline:
     def __init__(self,interval=180):
         """
@@ -79,15 +78,16 @@ class MainPipeline:
         }
 
     def question_func(self):
+        Q = Query()
         """Generates questions based on given cv/resume."""
         results = self.db.search(Q.questions == "")
         for row in results:
             extracted_text = row.get('Resume/CV').get('extracted_text')
-            prompt = f"""
-            Generate 5 questions for a job interview based on the following cv/resume:
-            {extracted_text}
-            """
-            response = self.prompt_sender.send_prompt(prompt)
+            # Humu! This part...
+            # Lemme just...
+            
+            response = generate_questions.create_interview_question(extracted_text,"Position")
+            # Wait... Did I forgot to add desired position value???
             question = response
             self.db.update({'question': question}, Q.phone_number == row.get('phone_number'))
 

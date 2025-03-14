@@ -23,7 +23,7 @@ def sanitize_field_name(field_name):
 
 def setup_directories():
     """Create necessary directories for storing responses and attachments."""
-    for directory in [config.OUTPUT_DIR, config.RESUME_CV_DIR, condfig.ANSWERS_DIR]:
+    for directory in [config.OUTPUT_DIR, config.RESUME_CV_DIR, config.ANSWERS_DIR]:
         if not os.path.exists(directory):
             os.makedirs(directory)
             print(f"Created directory: {directory}")

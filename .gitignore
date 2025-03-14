@@ -174,3 +174,5 @@ cython_debug/
 credentials.json
 responses_db.json
 
+# I Prefer To Put Keys Here
+*.ipynb
