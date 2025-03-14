@@ -49,7 +49,7 @@ class MainPipeline:
         results = self.db.search(Q.questions == "")
         for row in results:
             print("Hunyaaa~")
-            new_question = self.question_func(row)
+            new_question = self.question_func() # [Chuck notes] URGENT!!! Fix this asap
             # Update the row using the primary key 'phone_number'
             self.db.update({'questions': new_question}, Q.phone_number == row.get('phone_number'))
 

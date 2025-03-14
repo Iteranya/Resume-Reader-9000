@@ -147,7 +147,7 @@ def process_attachment(drive_service, url, field_config, response_id):
         # Save file
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = f"{response_id}_{timestamp}.{field_config['format']}"
-        filepath = os.path.join(config.ATTACHMENT_DIR, filename)
+        filepath = os.path.join(config.RESUME_CV_DIR, filename)
         
         with open(filepath, 'wb') as f:
             f.write(content)
