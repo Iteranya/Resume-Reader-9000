@@ -25,3 +25,20 @@ FIELD_MAPPINGS =  {
     #     'type': 'text',
     # }
 }
+
+KEYMAP = {
+    "timestamp": "timestamp",
+    "email_address": "email_address",
+    "phone_number": "phone_number",
+    "resume/cv": "resume/cv",
+    "nama_lengkap": "nama_lengkap",
+    "tanggal_lahir": "tanggal_lahir",
+    "jenis_kelamin": "jenis_kelamin",
+    "posisi_yang_diinginkan": "posisi_yang_diinginkan",
+    "domisili": "domisili",
+    "questions": "questions",
+    "answers": "answers",
+    "eval": "eval",
+    "score": "score",
+    "Resume/CV": "Resume/CV"
+}
