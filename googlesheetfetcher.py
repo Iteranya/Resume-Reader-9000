@@ -4,7 +4,6 @@ from oauth2client.service_account import ServiceAccountCredentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 from PyPDF2 import PdfReader
-from docx import Document
 from io import BytesIO
 import re
 import json
@@ -148,7 +147,7 @@ def process_attachment(drive_service, url, field_config, response_id):
         # Save file
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = f"{response_id}_{timestamp}.{field_config['format']}"
-        filepath = os.path.join(config.ATTACHMENT_DIR, filename)
+        filepath = os.path.join(config.RESUME_CV_DIR, filename)
         
         with open(filepath, 'wb') as f:
             f.write(content)
@@ -197,7 +196,13 @@ def process_responses():
             continue
 
         response_id = response.get('id', datetime.now().strftime('%Y%m%d_%H%M%S'))
-        processed_response = {sanitize_field_name(k): v for k, v in response.items()}
+
+        KEYMAP = config.KEYMAP
+        processed_response = {}
+
+        for key, value in response.items():
+            field_name = sanitize_field_name(key)
+            processed_response[KEYMAP.get(field_name)] = value
         
         # Add extra fields with default values
         processed_response["answer_file"] = ""
